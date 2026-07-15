@@ -2,7 +2,7 @@
 FROM pytorch/pytorch:2.1.2-cuda12.1-cudnn8-devel
 
 ARG CATVTON_REPO=https://github.com/Zheng-Chong/CatVTON.git
-ARG CATVTON_REF=main
+ARG CATVTON_REF=999bdbe81e6008a3f5749af7c1e0b0fa3d21b48e
 ARG BAKE_MODEL_WEIGHTS=false
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -19,14 +19,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         git build-essential libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
+# Clone the pinned official code and install its complete dependency set. Torch and
+# torchvision come from the CUDA base image at the exact versions required upstream.
+RUN git clone --filter=blob:none "$CATVTON_REPO" "$CATVTON_SOURCE_DIR" \
+    && git -C "$CATVTON_SOURCE_DIR" checkout "$CATVTON_REF" \
+    && grep -vE '^(torch|torchvision)==' "$CATVTON_SOURCE_DIR/requirements.txt" > /tmp/catvton-requirements.txt \
+    && pip install --no-cache-dir -r /tmp/catvton-requirements.txt \
+    && python -c "import torch, torchvision; assert torch.__version__.split('+')[0] == '2.1.2'; assert torchvision.__version__.split('+')[0] == '0.16.2'" \
+    && pip install --no-cache-dir -e "$CATVTON_SOURCE_DIR/detectron2"
+
 COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir -r requirements.txt
-
-# Clone official code, keep the selected ref configurable, and install its vendored Detectron2.
-RUN git clone --filter=blob:none "$CATVTON_REPO" "$CATVTON_SOURCE_DIR" \
-    && git -C "$CATVTON_SOURCE_DIR" checkout "$CATVTON_REF" \
-    && pip install --no-cache-dir -e "$CATVTON_SOURCE_DIR/detectron2"
 
 COPY . .
 

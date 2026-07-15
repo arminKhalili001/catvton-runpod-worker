@@ -4,6 +4,7 @@ import base64
 import builtins
 import importlib
 import io
+from pathlib import Path
 import sys
 
 import pytest
@@ -56,6 +57,15 @@ def test_handler_import_does_not_require_heavy_runtime(monkeypatch: pytest.Monke
         for name, module in saved.items():
             if module is not None:
                 sys.modules[name] = module
+
+
+def test_runpod_entrypoint_is_direct_and_guarded() -> None:
+    source = Path(handler.__file__).read_text(encoding="utf-8")
+    assert source.rstrip().endswith(
+        'if __name__ == "__main__":\n'
+        "    import runpod\n"
+        '    runpod.serverless.start({"handler": handler})'
+    )
 
 
 def test_missing_person_image() -> None:

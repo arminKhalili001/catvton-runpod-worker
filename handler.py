@@ -19,7 +19,9 @@ LOGGER = logging.getLogger(__name__)
 
 def _generate_tryon(*args: Any, **kwargs: Any) -> Any:
     from inference import generate_tryon
+    from model_loader import initialize_model
 
+    initialize_model()
     return generate_tryon(*args, **kwargs)
 
 
@@ -88,14 +90,6 @@ def handler(job: Any) -> dict[str, Any]:
             _cleanup_cuda()
 
 
-def main() -> None:
-    import runpod
-    from model_loader import initialize_model
-
-    LOGGER.info("Initializing CatVTON RunPod worker")
-    initialize_model()
-    runpod.serverless.start({"handler": handler})
-
-
 if __name__ == "__main__":
-    main()
+    import runpod
+    runpod.serverless.start({"handler": handler})
