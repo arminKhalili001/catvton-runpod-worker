@@ -19,18 +19,34 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         git build-essential libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Clone the pinned official code and install its complete dependency set. Torch and
-# torchvision come from the CUDA base image at the exact versions required upstream.
-RUN git clone --filter=blob:none "$CATVTON_REPO" "$CATVTON_SOURCE_DIR" \
-    && git -C "$CATVTON_SOURCE_DIR" checkout "$CATVTON_REF" \
-    && grep -vE '^(torch|torchvision)==' "$CATVTON_SOURCE_DIR/requirements.txt" > /tmp/catvton-requirements.txt \
-    && pip install --no-cache-dir -r /tmp/catvton-requirements.txt \
-    && python -c "import torch, torchvision; assert torch.__version__.split('+')[0] == '2.1.2'; assert torchvision.__version__.split('+')[0] == '0.16.2'" \
-    && pip install --no-cache-dir -e "$CATVTON_SOURCE_DIR/detectron2"
-
 COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir -r requirements.txt
+    python -m pip install --no-cache-dir -r requirements.txt
+
+# Keep the base image's torch 2.1.2 and install only its matching CUDA 12.1
+# torchvision/torchaudio wheels after the worker dependencies.
+RUN python -m pip install --no-cache-dir \
+      torchvision==0.16.2 \
+      torchaudio==2.1.2 \
+      --index-url https://download.pytorch.org/whl/cu121
+
+# Keep these as separate layers so RunPod identifies the exact failing stage.
+RUN git clone --filter=blob:none "$CATVTON_REPO" "$CATVTON_SOURCE_DIR"
+
+RUN git -C "$CATVTON_SOURCE_DIR" checkout --detach "$CATVTON_REF"
+
+RUN grep -viE '^[[:space:]]*(torch|torchvision|torchaudio)([[:space:]]|[=<>!~]|$)' \
+      "$CATVTON_SOURCE_DIR/requirements.txt" > /tmp/catvton-requirements.txt
+
+RUN python -m pip install --no-cache-dir -r /tmp/catvton-requirements.txt
+
+RUN python -c "import torch, torchvision; print(torch.__version__, torchvision.__version__); assert torch.__version__.split('+')[0] == '2.1.2'; assert torchvision.__version__.split('+')[0] == '0.16.2'"
+
+RUN if [ ! -d "$CATVTON_SOURCE_DIR/detectron2" ]; then \
+      echo "ERROR: CatVTON detectron2 directory not found: $CATVTON_SOURCE_DIR/detectron2" >&2; \
+      exit 1; \
+    fi \
+    && python -m pip install --no-cache-dir -e "$CATVTON_SOURCE_DIR/detectron2"
 
 COPY . .
 
