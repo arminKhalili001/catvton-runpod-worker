@@ -2,8 +2,7 @@
 FROM pytorch/pytorch:2.1.2-cuda12.1-cudnn8-devel
 
 ARG CATVTON_REPO=https://github.com/Zheng-Chong/CatVTON.git
-ARG CATVTON_REF=999bdbe81e6008a3f5749af7c1e0b0fa3d21b48e
-ARG DETECTRON2_REF=bcfd464d0c810f0442d91a349c0f6df945467143
+ARG CATVTON_REF=7818397f25613beedb3d861a34769f607cfcf3b1
 ARG BAKE_MODEL_WEIGHTS=false
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -32,9 +31,13 @@ RUN python -m pip install --no-cache-dir \
       --index-url https://download.pytorch.org/whl/cu121
 
 # Keep these as separate layers so RunPod identifies the exact failing stage.
-RUN git clone --filter=blob:none "$CATVTON_REPO" "$CATVTON_SOURCE_DIR"
+RUN git clone "$CATVTON_REPO" "$CATVTON_SOURCE_DIR"
 
-RUN git -C "$CATVTON_SOURCE_DIR" checkout --detach "$CATVTON_REF"
+RUN git -C "$CATVTON_SOURCE_DIR" checkout --detach "$CATVTON_REF" \
+    && echo "CatVTON root contents:" \
+    && ls -la "$CATVTON_SOURCE_DIR" \
+    && echo "Detectron2 contents:" \
+    && ls -la "$CATVTON_SOURCE_DIR/detectron2"
 
 RUN grep -viE '^[[:space:]]*(torch|torchvision|torchaudio)([[:space:]]|[=<>!~]|$)' \
       "$CATVTON_SOURCE_DIR/requirements.txt" > /tmp/catvton-requirements.txt
@@ -43,12 +46,14 @@ RUN python -m pip install --no-cache-dir -r /tmp/catvton-requirements.txt
 
 RUN python -c "import torch, torchvision; print(torch.__version__, torchvision.__version__); assert torch.__version__.split('+')[0] == '2.1.2'; assert torchvision.__version__.split('+')[0] == '0.16.2'"
 
-# AutoMasker imports both Detectron2 and its DensePose project. Install both
-# from the same pinned revision of the official upstream repository.
-RUN python -m pip install --no-cache-dir \
-      "git+https://github.com/facebookresearch/detectron2.git@$DETECTRON2_REF" \
-    && python -m pip install --no-cache-dir \
-      "git+https://github.com/facebookresearch/detectron2.git@$DETECTRON2_REF#subdirectory=projects/DensePose"
+RUN if [ -f "$CATVTON_SOURCE_DIR/detectron2/setup.py" ] || \
+       [ -f "$CATVTON_SOURCE_DIR/detectron2/pyproject.toml" ]; then \
+      python -m pip install --no-cache-dir -e "$CATVTON_SOURCE_DIR/detectron2"; \
+    else \
+      echo "ERROR: detectron2 exists but is not an installable Python package" >&2; \
+      find "$CATVTON_SOURCE_DIR/detectron2" -maxdepth 2 -type f | head -100; \
+      exit 1; \
+    fi
 
 COPY . .
 

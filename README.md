@@ -115,11 +115,11 @@ docker run --rm --gpus all \
   --output output/result.jpg
 ```
 
-برای اجرای مستقیم روی یک Linux GPU host، ابتدا repository رسمی را در `/opt/CatVTON` clone کنید و Detectron2 و DensePose را مطابق `INSTALL.md` رسمی CatVTON از repository رسمی Detectron2 نصب کنید؛ سپس `python -m pip install -r requirements.txt` و همان دستور `python scripts/local_test.py ...` را اجرا کنید. مسیر source با `CATVTON_SOURCE_DIR` قابل تغییر است.
+برای اجرای مستقیم روی یک Linux GPU host، ابتدا repository رسمی را در `/opt/CatVTON` clone کنید. نسخه pin‌شده شامل `detectron2` و `densepose` است؛ نصب editable محلی Detectron2 فقط در صورت وجود `setup.py` یا `pyproject.toml` انجام می‌شود. سپس `python -m pip install -r requirements.txt` و همان دستور `python scripts/local_test.py ...` را اجرا کنید. مسیر source با `CATVTON_SOURCE_DIR` قابل تغییر است.
 
 ## Model download و cache
 
-Dockerfile کد رسمی را از `Zheng-Chong/CatVTON` clone می‌کند. برای build قابل تکرار، `CATVTON_REF` را به commit SHA بررسی‌شده خود pin کنید:
+Dockerfile یک clone کامل از `Zheng-Chong/CatVTON` می‌گیرد و commit پیش‌فرض بررسی‌شده `7818397f25613beedb3d861a34769f607cfcf3b1` را checkout می‌کند. این commit شامل `detectron2`، `densepose`، `model` و `requirements.txt` است. برای override کردن ref:
 
 ```bash
 docker build \
