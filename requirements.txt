@@ -1,5 +1,5 @@
 # Runtime and model versions match the official CatVTON dependency set.
-runpod==1.9.1
+runpod==1.10.1
 accelerate==0.31.0
 diffusers==0.29.2
 huggingface-hub==0.23.4

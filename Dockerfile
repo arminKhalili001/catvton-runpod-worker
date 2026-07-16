@@ -24,6 +24,8 @@ COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     python -m pip install --no-cache-dir -r requirements.txt
 
+RUN python -c "import importlib.metadata, runpod; version = getattr(runpod, '__version__', importlib.metadata.version('runpod')); print('runpod version:', version); assert version == '1.10.1'"
+
 # Keep the base image's torch 2.1.2 and install only its matching CUDA 12.1
 # torchvision/torchaudio wheels after the worker dependencies.
 RUN python -m pip install --no-cache-dir \
