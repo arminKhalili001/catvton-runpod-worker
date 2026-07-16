@@ -3,6 +3,7 @@ FROM pytorch/pytorch:2.1.2-cuda12.1-cudnn8-devel
 
 ARG CATVTON_REPO=https://github.com/Zheng-Chong/CatVTON.git
 ARG CATVTON_REF=999bdbe81e6008a3f5749af7c1e0b0fa3d21b48e
+ARG DETECTRON2_REF=bcfd464d0c810f0442d91a349c0f6df945467143
 ARG BAKE_MODEL_WEIGHTS=false
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -42,11 +43,12 @@ RUN python -m pip install --no-cache-dir -r /tmp/catvton-requirements.txt
 
 RUN python -c "import torch, torchvision; print(torch.__version__, torchvision.__version__); assert torch.__version__.split('+')[0] == '2.1.2'; assert torchvision.__version__.split('+')[0] == '0.16.2'"
 
-RUN if [ ! -d "$CATVTON_SOURCE_DIR/detectron2" ]; then \
-      echo "ERROR: CatVTON detectron2 directory not found: $CATVTON_SOURCE_DIR/detectron2" >&2; \
-      exit 1; \
-    fi \
-    && python -m pip install --no-cache-dir -e "$CATVTON_SOURCE_DIR/detectron2"
+# AutoMasker imports both Detectron2 and its DensePose project. Install both
+# from the same pinned revision of the official upstream repository.
+RUN python -m pip install --no-cache-dir \
+      "git+https://github.com/facebookresearch/detectron2.git@$DETECTRON2_REF" \
+    && python -m pip install --no-cache-dir \
+      "git+https://github.com/facebookresearch/detectron2.git@$DETECTRON2_REF#subdirectory=projects/DensePose"
 
 COPY . .
 
